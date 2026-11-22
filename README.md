@@ -78,6 +78,12 @@ pnpm zip         # Package zip for distribution -> .output/
 
 ---
 
+## Pull Request Policy
+
+External pull requests are not accepted. Only maintainer PRs and automated dependency updates (Renovate) are processed.
+
+---
+
 ## License
 
 This project is licensed under the **GNU General Public License v3.0** (`GPL-3.0-only`). See [LICENSE](./LICENSE) for details.

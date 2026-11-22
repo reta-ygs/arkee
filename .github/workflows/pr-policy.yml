@@ -1,0 +1,44 @@
+name: External PR Policy
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: {}
+
+jobs:
+  enforce-pr-policy:
+    name: Enforce PR Policy
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Auto-close external PRs (allow maintainer & Renovate only)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const author = context.payload.pull_request?.user?.login ?? '';
+            const allowed = new Set([
+              context.repo.owner,
+              'renovate[bot]',
+              'app/renovate',
+            ]);
+
+            if (allowed.has(author)) {
+              core.info(`Allowed PR author: ${author}`);
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: 'Thank you for your interest in Arkee. This repository is maintained personally and does not accept external pull requests (only maintainer and automated Renovate PRs are processed).',
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              state: 'closed',
+            });

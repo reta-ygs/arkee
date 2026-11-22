@@ -1,9 +1,5 @@
 import { getGroupHomes, getSettings, saveGroupHomes } from './storage';
-import type {
-  GroupHomeRecord,
-  GroupResetResult,
-  GroupUnloadResult,
-} from './types';
+import type { GroupHomeRecord, GroupResetResult, GroupUnloadResult } from './types';
 
 function isTrackableUrl(url: string | undefined): url is string {
   return Boolean(url && (url.startsWith('http://') || url.startsWith('https://')));
@@ -69,10 +65,7 @@ export async function syncAllGroupedTabs(): Promise<void> {
   const settings = await getSettings();
   if (!settings.groupHome.enabled) return;
 
-  const [allTabs, records] = await Promise.all([
-    chrome.tabs.query({}),
-    getGroupHomes(),
-  ]);
+  const [allTabs, records] = await Promise.all([chrome.tabs.query({}), getGroupHomes()]);
 
   const groupedTabs = allTabs.filter(isGroupedTab);
   const byTabId = new Map(records.map((r) => [r.tabId, r]));
@@ -130,10 +123,7 @@ function waitForNavigationCommit(
       resolve();
     };
 
-    const onUpdated = (
-      updatedId: number,
-      changeInfo: chrome.tabs.TabChangeInfo,
-    ) => {
+    const onUpdated = (updatedId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
       if (updatedId !== tabId) return;
       if (changeInfo.url === targetUrl || changeInfo.status === 'complete') {
         finish();
@@ -150,9 +140,7 @@ async function focusTabOutside(
   excludeTabIds: Set<number>,
 ): Promise<boolean> {
   const tabs = await chrome.tabs.query({ windowId });
-  const candidates = tabs.filter(
-    (t) => t.id != null && !excludeTabIds.has(t.id),
-  );
+  const candidates = tabs.filter((t) => t.id != null && !excludeTabIds.has(t.id));
   if (candidates.length === 0) return false;
 
   const preferred =
@@ -192,10 +180,7 @@ export async function resetGroupTabToHome(
     return { ok: false, error: 'タブグループ内のタブではありません' };
   }
 
-  const [records, settings] = await Promise.all([
-    getGroupHomes(),
-    getSettings(),
-  ]);
+  const [records, settings] = await Promise.all([getGroupHomes(), getSettings()]);
   const record = records.find((r) => r.tabId === targetTab!.id);
   const homeUrl = record?.homeUrl ?? targetTab.url;
 

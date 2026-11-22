@@ -1,6 +1,6 @@
 import {
-  DEFAULT_SETTINGS,
   type ArchivedTab,
+  DEFAULT_SETTINGS,
   type GroupHomeRecord,
   type Settings,
 } from './types';
@@ -53,10 +53,10 @@ export async function appendArchivedTabs(newItems: ArchivedTab[]): Promise<void>
   if (newItems.length === 0) return;
   const existing = await getArchivedTabs();
   const seen = new Set(newItems.map((item) => item.url));
-  const merged = [
-    ...newItems,
-    ...existing.filter((item) => !seen.has(item.url)),
-  ].slice(0, MAX_ARCHIVE_ITEMS);
+  const merged = [...newItems, ...existing.filter((item) => !seen.has(item.url))].slice(
+    0,
+    MAX_ARCHIVE_ITEMS,
+  );
   await saveArchivedTabs(merged);
 }
 
@@ -74,7 +74,10 @@ export async function getTabActivityMap(): Promise<Record<string, number>> {
   return (result[KEYS.TAB_ACTIVITY] as Record<string, number> | undefined) ?? {};
 }
 
-export async function recordTabActivity(tabId: number, timestamp = Date.now()): Promise<void> {
+export async function recordTabActivity(
+  tabId: number,
+  timestamp = Date.now(),
+): Promise<void> {
   const map = await getTabActivityMap();
   map[String(tabId)] = timestamp;
   await chrome.storage.session.set({ [KEYS.TAB_ACTIVITY]: map });

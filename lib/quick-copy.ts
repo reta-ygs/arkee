@@ -43,10 +43,7 @@ async function writeClipboardViaOffscreen(
   return { ok: false, error: lastError };
 }
 
-async function writeClipboardViaActiveTab(
-  tabId: number,
-  text: string,
-): Promise<boolean> {
+async function writeClipboardViaActiveTab(tabId: number, text: string): Promise<boolean> {
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId },
@@ -194,11 +191,7 @@ export async function quickCopyActiveUrl(): Promise<CopyResult> {
     await flashBadge('✓', '#10b981');
 
     if (settings.quickCopy.showPageToast && isHttpTab && activeTab.id != null) {
-      await showPageToast(
-        activeTab.id,
-        changed ? 'Clean URL Copied' : 'URL Copied',
-        url,
-      );
+      await showPageToast(activeTab.id, changed ? 'Clean URL Copied' : 'URL Copied', url);
     }
 
     return { ok: true, url, cleaned: changed };

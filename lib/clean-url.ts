@@ -64,9 +64,7 @@ export function cleanUrl(
   }
 
   const extra = new Set(
-    (options.extraStripParams ?? [])
-      .map((p) => p.trim().toLowerCase())
-      .filter(Boolean),
+    (options.extraStripParams ?? []).map((p) => p.trim().toLowerCase()).filter(Boolean),
   );
 
   let changed = false;

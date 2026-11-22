@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   Archive,
   Check,
@@ -10,16 +9,17 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { getSettings, saveSettings } from '../../lib/storage';
 import { isBuiltInAiAvailable } from '../../lib/tidy-tabs';
 import {
-  DEFAULT_SETTINGS,
-  TAB_GROUP_COLORS,
   type AiBackendMode,
   type AtcMatchType,
   type AtcRule,
   type ByokProvider,
+  DEFAULT_SETTINGS,
   type Settings,
+  TAB_GROUP_COLORS,
   type TabGroupColor,
 } from '../../lib/types';
 
@@ -49,10 +49,7 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      const [loaded, aiOk] = await Promise.all([
-        getSettings(),
-        isBuiltInAiAvailable(),
-      ]);
+      const [loaded, aiOk] = await Promise.all([getSettings(), isBuiltInAiAvailable()]);
       setSettings(loaded);
       setExtraParamsText(loaded.quickCopy.extraStripParams.join(', '));
       setBuiltInAvailable(aiOk);
@@ -83,9 +80,7 @@ export default function App() {
   };
 
   const handleUpdateRule = (id: string, patch: Partial<AtcRule>) => {
-    const rules = settings.atc.rules.map((r) =>
-      r.id === id ? { ...r, ...patch } : r,
-    );
+    const rules = settings.atc.rules.map((r) => (r.id === id ? { ...r, ...patch } : r));
     void persist({ ...settings, atc: { ...settings.atc, rules } });
   };
 
@@ -130,7 +125,9 @@ export default function App() {
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Archive className="h-4 w-4 text-indigo-400" />
-              <h2 className="text-sm font-semibold">1. Auto-Archive（未操作タブの自動退避）</h2>
+              <h2 className="text-sm font-semibold">
+                1. Auto-Archive（未操作タブの自動退避）
+              </h2>
             </div>
             <label className="flex items-center gap-2 text-xs text-slate-300">
               <input
@@ -150,7 +147,9 @@ export default function App() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-xs">
-              <span className="mb-1 block text-slate-400">アーカイブまでの未操作時間（時間）</span>
+              <span className="mb-1 block text-slate-400">
+                アーカイブまでの未操作時間（時間）
+              </span>
               <input
                 type="number"
                 min={1}
@@ -388,9 +387,7 @@ export default function App() {
                 <input
                   type="text"
                   value={rule.pattern}
-                  onChange={(e) =>
-                    handleUpdateRule(rule.id, { pattern: e.target.value })
-                  }
+                  onChange={(e) => handleUpdateRule(rule.id, { pattern: e.target.value })}
                   placeholder="*://github.com/*"
                   className="col-span-4 rounded border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 />
@@ -453,7 +450,9 @@ export default function App() {
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-emerald-400" />
-              <h2 className="text-sm font-semibold">5. Tidy Tabs（AI 自動グルーピング）</h2>
+              <h2 className="text-sm font-semibold">
+                5. Tidy Tabs（AI 自動グルーピング）
+              </h2>
             </div>
             <span
               className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
@@ -516,7 +515,9 @@ export default function App() {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-slate-400">BYOK API キー（ローカル保存）</span>
+              <span className="mb-1 block text-slate-400">
+                BYOK API キー（ローカル保存）
+              </span>
               <input
                 type="password"
                 value={settings.tidyTabs.byokApiKey}
@@ -532,7 +533,9 @@ export default function App() {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-slate-400">モデル名（空欄でデフォルト）</span>
+              <span className="mb-1 block text-slate-400">
+                モデル名（空欄でデフォルト）
+              </span>
               <input
                 type="text"
                 value={settings.tidyTabs.byokModel}
@@ -576,10 +579,26 @@ export default function App() {
             ）から自由にキーを変更できます。
           </p>
           <ul className="grid gap-1.5 text-xs text-slate-300 sm:grid-cols-2">
-            <li>• Popup / アーカイブ検索: <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+A</kbd> / <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+A</kbd></li>
-            <li>• Quick Copy Clean URL: <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+C</kbd> / <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+C</kbd></li>
-            <li>• Tab Group 内タブ リセット＆休眠: <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+R</kbd> / <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+R</kbd></li>
-            <li>• Tidy Tabs 実行: <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+T</kbd> / <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+T</kbd></li>
+            <li>
+              • Popup / アーカイブ検索:{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+A</kbd> /{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+A</kbd>
+            </li>
+            <li>
+              • Quick Copy Clean URL:{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+C</kbd> /{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+C</kbd>
+            </li>
+            <li>
+              • Tab Group 内タブ リセット＆休眠:{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+R</kbd> /{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+R</kbd>
+            </li>
+            <li>
+              • Tidy Tabs 実行:{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Cmd+Shift+T</kbd> /{' '}
+              <kbd className="rounded bg-slate-800 px-1.5 py-0.5">Ctrl+Shift+T</kbd>
+            </li>
           </ul>
         </section>
       </div>

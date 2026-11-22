@@ -42,10 +42,7 @@ export function isArchivableTab(
   return now - lastActiveAt >= thresholdMs;
 }
 
-export function searchArchivedTabs(
-  tabs: ArchivedTab[],
-  query: string,
-): ArchivedTab[] {
+export function searchArchivedTabs(tabs: ArchivedTab[], query: string): ArchivedTab[] {
   const trimmed = query.trim().toLowerCase();
   if (!trimmed) return tabs;
   const terms = trimmed.split(/\s+/).filter(Boolean);
@@ -55,9 +52,7 @@ export function searchArchivedTabs(
   });
 }
 
-export async function runAutoArchive(
-  options: { force?: boolean } = {},
-): Promise<number> {
+export async function runAutoArchive(options: { force?: boolean } = {}): Promise<number> {
   const settings = await getSettings();
   if (!options.force && !settings.autoArchive.enabled) {
     return 0;
@@ -75,9 +70,7 @@ export async function runAutoArchive(
   for (const tab of tabs) {
     if (tab.id == null) continue;
     const lastActiveAt =
-      activityMap[String(tab.id)] ??
-      (tab as ArchivableTabLike).lastAccessed ??
-      now;
+      activityMap[String(tab.id)] ?? (tab as ArchivableTabLike).lastAccessed ?? now;
 
     if (isArchivableTab(tab, settings.autoArchive, lastActiveAt, now)) {
       toArchive.push({

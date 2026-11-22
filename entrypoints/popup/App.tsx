@@ -1,12 +1,4 @@
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from 'react';
-import {
   Archive,
   ArrowDownLeft,
   BookmarkCheck,
@@ -24,6 +16,14 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react';
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { searchArchivedTabs } from '../../lib/auto-archive';
 import { buildPaletteItems, type PaletteItem } from '../../lib/command-palette';
 import type {
@@ -70,13 +70,14 @@ export default function App() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [archiveQuery, setArchiveQuery] = useState('');
-  const [status, setStatus] = useState<{ text: string; tone: 'ok' | 'err' | 'info' } | null>(
-    null,
-  );
+  const [status, setStatus] = useState<{
+    text: string;
+    tone: 'ok' | 'err' | 'info';
+  } | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   const paletteInputRef = useRef<HTMLInputElement>(null);
-  const selectedItemRef = useRef<HTMLButtonElement>(null);
+  const selectedItemRef = useRef<HTMLDivElement>(null);
 
   const loadState = useCallback(async () => {
     const data = await sendMsg<PopupState>({ type: 'GET_POPUP_STATE' });
@@ -95,8 +96,7 @@ export default function App() {
     }, 3500);
   };
 
-  const isPaletteMode =
-    !creatingGroup && (paletteOpen || paletteQuery.trim().length > 0);
+  const isPaletteMode = !creatingGroup && (paletteOpen || paletteQuery.trim().length > 0);
 
   const paletteItems = useMemo(() => {
     if (!state || !isPaletteMode) return [];
@@ -104,11 +104,9 @@ export default function App() {
   }, [state, isPaletteMode, paletteQuery]);
 
   useEffect(() => {
-    setSelectedIndex(0);
-  }, [paletteQuery, isPaletteMode]);
-
-  useEffect(() => {
-    selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
+    if (selectedIndex >= 0) {
+      selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
+    }
   }, [selectedIndex]);
 
   const filteredArchive = useMemo(
@@ -117,8 +115,7 @@ export default function App() {
   );
 
   const totalGroupedTabs = useMemo(
-    () =>
-      (state?.tabGroups ?? []).reduce((sum, g) => sum + g.tabs.length, 0),
+    () => (state?.tabGroups ?? []).reduce((sum, g) => sum + g.tabs.length, 0),
     [state?.tabGroups],
   );
 
@@ -158,9 +155,7 @@ export default function App() {
           showStatus(res.error, 'info');
         } else {
           showStatus(
-            res.discarded
-              ? 'ホームURLへ戻して休眠しました'
-              : 'ホームURLへ戻しました',
+            res.discarded ? 'ホームURLへ戻して休眠しました' : 'ホームURLへ戻しました',
           );
         }
         await loadState();
@@ -483,7 +478,10 @@ export default function App() {
               ref={paletteInputRef}
               type="text"
               value={paletteQuery}
-              onChange={(e) => setPaletteQuery(e.target.value)}
+              onChange={(e) => {
+                setPaletteQuery(e.target.value);
+                setSelectedIndex(0);
+              }}
               onKeyDown={handlePaletteKeyDown}
               placeholder={
                 creatingGroup
@@ -576,68 +574,68 @@ export default function App() {
               paletteItems.map((item, idx) => {
                 const isSelected = idx === selectedIndex;
                 return (
-                  <button
+                  <div
                     key={item.id}
                     ref={isSelected ? selectedItemRef : null}
-                    type="button"
-                    onMouseEnter={() => setSelectedIndex(idx)}
-                    onClick={() => void executePaletteItem(item)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
+                    className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 transition ${
                       isSelected
                         ? 'bg-indigo-600/25 text-white ring-1 ring-indigo-500/50'
                         : 'text-slate-200 hover:bg-slate-900'
                     }`}
                   >
-                    {item.favIconUrl ? (
-                      <img
-                        src={item.favIconUrl}
-                        alt=""
-                        className="h-4 w-4 shrink-0 rounded-sm"
-                      />
-                    ) : item.kind === 'action' ? (
-                      <Zap className="h-4 w-4 shrink-0 text-amber-400" />
-                    ) : item.kind === 'open-url' ? (
-                      <Globe className="h-4 w-4 shrink-0 text-sky-400" />
-                    ) : item.kind === 'archive' ? (
-                      <Archive className="h-4 w-4 shrink-0 text-slate-400" />
-                    ) : (
-                      <div className="h-4 w-4 shrink-0 rounded-sm bg-slate-800" />
-                    )}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setSelectedIndex(idx)}
+                      onClick={() => void executePaletteItem(item)}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                    >
+                      {item.favIconUrl ? (
+                        <img
+                          src={item.favIconUrl}
+                          alt=""
+                          className="h-4 w-4 shrink-0 rounded-sm"
+                        />
+                      ) : item.kind === 'action' ? (
+                        <Zap className="h-4 w-4 shrink-0 text-amber-400" />
+                      ) : item.kind === 'open-url' ? (
+                        <Globe className="h-4 w-4 shrink-0 text-sky-400" />
+                      ) : item.kind === 'archive' ? (
+                        <Archive className="h-4 w-4 shrink-0 text-slate-400" />
+                      ) : (
+                        <div className="h-4 w-4 shrink-0 rounded-sm bg-slate-800" />
+                      )}
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        {item.groupColor && item.groupTitle && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-slate-800/90 px-1.5 py-0.5 text-[10px] text-slate-300">
-                            <span
-                              className={`h-2 w-2 rounded-full ${GROUP_DOT[item.groupColor]}`}
-                            />
-                            {item.groupTitle}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          {item.groupColor && item.groupTitle && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-slate-800/90 px-1.5 py-0.5 text-[10px] text-slate-300">
+                              <span
+                                className={`h-2 w-2 rounded-full ${GROUP_DOT[item.groupColor]}`}
+                              />
+                              {item.groupTitle}
+                            </span>
+                          )}
+                          <span className="truncate text-xs font-medium">
+                            {item.title}
                           </span>
-                        )}
-                        <span className="truncate text-xs font-medium">
-                          {item.title}
-                        </span>
+                        </div>
+                        <div className="truncate text-[10px] text-slate-400">
+                          {item.subtitle}
+                        </div>
                       </div>
-                      <div className="truncate text-[10px] text-slate-400">
-                        {item.subtitle}
-                      </div>
-                    </div>
+                    </button>
 
                     <div className="flex shrink-0 items-center gap-1.5">
                       {item.isOtherWindow && item.tabId != null && (
-                        <span
-                          role="button"
-                          tabIndex={-1}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handlePullTabHere(item.tabId!);
-                          }}
+                        <button
+                          type="button"
+                          onClick={() => void handlePullTabHere(item.tabId!)}
                           className="inline-flex items-center gap-0.5 rounded bg-indigo-500/20 px-1.5 py-0.5 text-[9px] font-medium text-indigo-300 hover:bg-indigo-500/35"
                           title="このウィンドウへ持ってくる (Shift+Enter)"
                         >
                           <ArrowDownLeft className="h-2.5 w-2.5" />
                           Pull
-                        </span>
+                        </button>
                       )}
                       {item.badge && (
                         <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-300">
@@ -648,7 +646,7 @@ export default function App() {
                         <CornerDownLeft className="h-3.5 w-3.5 text-indigo-300" />
                       )}
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}
@@ -694,9 +692,7 @@ export default function App() {
               className="flex flex-col items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-2 text-xs font-medium text-slate-200 transition hover:border-emerald-500/60 hover:bg-slate-800 disabled:opacity-50"
             >
               <Sparkles className="h-4 w-4 text-emerald-400" />
-              <span>
-                Tidy {state ? `(${state.ungroupedCount})` : ''}
-              </span>
+              <span>Tidy {state ? `(${state.ungroupedCount})` : ''}</span>
             </button>
           </section>
 
@@ -760,7 +756,9 @@ export default function App() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => void handleUnloadGroup(group.groupId, group.title)}
+                          onClick={() =>
+                            void handleUnloadGroup(group.groupId, group.title)
+                          }
                           disabled={busyAction !== null}
                           className="flex shrink-0 items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300 transition hover:bg-indigo-500/20 hover:text-indigo-200"
                           title="グループ内の全タブをホームURLへ戻して休眠・折りたたみ"
@@ -869,7 +867,8 @@ export default function App() {
                       </p>
                       {state && (
                         <p className="mt-1 text-[11px] text-slate-600">
-                          未グループタブを未操作 {state.settings.autoArchive.idleHours} 時間で自動アーカイブ
+                          未グループタブを未操作 {state.settings.autoArchive.idleHours}{' '}
+                          時間で自動アーカイブ
                         </p>
                       )}
                     </div>

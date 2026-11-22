@@ -76,10 +76,7 @@ function scoreMatch(item: PaletteItem, terms: string[]): number {
   return score;
 }
 
-export function buildPaletteItems(
-  state: PopupState,
-  rawQuery: string,
-): PaletteItem[] {
+export function buildPaletteItems(state: PopupState, rawQuery: string): PaletteItem[] {
   const trimmed = rawQuery.trim();
   let scope: 'all' | 'action' | 'tab' | 'archive' = 'all';
   let searchText = trimmed;
@@ -226,8 +223,7 @@ export function buildPaletteItems(
     })),
     ...state.openTabs
       .filter(
-        (t) =>
-          state.currentWindowId != null && t.windowId !== state.currentWindowId,
+        (t) => state.currentWindowId != null && t.windowId !== state.currentWindowId,
       )
       .map((t) => ({
         id: `act:pull-tab:${t.tabId}`,

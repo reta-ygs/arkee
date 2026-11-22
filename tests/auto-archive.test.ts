@@ -44,7 +44,14 @@ describe('isArchivableTab', () => {
     ).toBe(false);
     expect(
       isArchivableTab(
-        { id: 3, url: 'https://example.com', active: false, pinned: false, audible: true, groupId: -1 },
+        {
+          id: 3,
+          url: 'https://example.com',
+          active: false,
+          pinned: false,
+          audible: true,
+          groupId: -1,
+        },
         cfg,
         thirteenHoursAgo,
         now,

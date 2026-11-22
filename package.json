@@ -10,6 +10,9 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "wxt prepare"
@@ -20,6 +23,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
     "@tailwindcss/vite": "^4.0.9",
     "@types/chrome": "^0.0.312",
     "@types/react": "^19.0.10",

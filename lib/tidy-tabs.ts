@@ -1,7 +1,7 @@
 import { getSettings } from './storage';
 import {
-  TAB_GROUP_COLORS,
   type Settings,
+  TAB_GROUP_COLORS,
   type TabGroupColor,
   type TidyGroupSuggestion,
   type TidyResult,
@@ -27,16 +27,12 @@ interface BuiltInLanguageModelOptions {
 
 interface BuiltInLanguageModelStatic {
   availability?: (options?: BuiltInLanguageModelOptions) => Promise<string>;
-  create: (
-    options?: BuiltInLanguageModelOptions,
-  ) => Promise<BuiltInLanguageModelSession>;
+  create: (options?: BuiltInLanguageModelOptions) => Promise<BuiltInLanguageModelSession>;
 }
 
 const SUPPORTED_BUILTIN_OUTPUT_LANGUAGES = ['ja', 'en'] as const;
 
-function makeBuiltInLanguageOptions(
-  outputLanguage: string,
-): BuiltInLanguageModelOptions {
+function makeBuiltInLanguageOptions(outputLanguage: string): BuiltInLanguageModelOptions {
   return {
     expectedInputs: [{ type: 'text', languages: ['en', 'ja'] }],
     expectedOutputs: [{ type: 'text', languages: [outputLanguage] }],
@@ -321,8 +317,7 @@ async function runByokAi(
 
 export async function runTidyTabs(windowId?: number): Promise<TidyResult> {
   const settings = await getSettings();
-  const targetWindowId =
-    windowId ?? (await chrome.windows.getLastFocused()).id;
+  const targetWindowId = windowId ?? (await chrome.windows.getLastFocused()).id;
 
   const allTabs = await chrome.tabs.query({
     windowId: targetWindowId,
@@ -402,7 +397,8 @@ export async function runTidyTabs(windowId?: number): Promise<TidyResult> {
     try {
       const groupId = await chrome.tabs.group({
         tabIds: group.tabIds as [number, ...number[]],
-        createProperties: targetWindowId != null ? { windowId: targetWindowId } : undefined,
+        createProperties:
+          targetWindowId != null ? { windowId: targetWindowId } : undefined,
       });
       await chrome.tabGroups.update(groupId, {
         title: group.title,

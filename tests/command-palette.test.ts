@@ -108,9 +108,7 @@ describe('buildPaletteItems', () => {
       { ...sampleState, activeTabGroupId: 1 },
       '> 外す',
     );
-    expect(ungroupItems.some((i) => i.actionId === 'ungroup-active-tab')).toBe(
-      true,
-    );
+    expect(ungroupItems.some((i) => i.actionId === 'ungroup-active-tab')).toBe(true);
   });
 
   it('marks other-window tabs and provides Pull Tab / Pull Group actions', () => {

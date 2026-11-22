@@ -1,5 +1,5 @@
-import { defineConfig, type WxtViteConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
+import { defineConfig, type WxtViteConfig } from 'wxt';
 
 export default defineConfig({
   extensionApi: 'chrome',

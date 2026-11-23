@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { getUnsafeAtcRegexReason } from '../../lib/air-traffic-control';
 import { getSettings, saveSettings } from '../../lib/storage';
 import { isBuiltInAiAvailable } from '../../lib/tidy-tabs';
 import {
@@ -440,6 +441,12 @@ export default function App() {
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
+                {rule.matchType === 'regex' && getUnsafeAtcRegexReason(rule.pattern) && (
+                  <p className="col-span-12 text-[11px] text-amber-400">
+                    この正規表現は処理が極端に遅くなる恐れがあるため無効です:{' '}
+                    {getUnsafeAtcRegexReason(rule.pattern)}
+                  </p>
+                )}
               </div>
             ))}
           </div>

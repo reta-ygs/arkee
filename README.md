@@ -24,6 +24,7 @@ A lightweight Chrome Extension (Manifest V3) that upgrades Chrome's native **Ver
    - Uses MV3 Offscreen clipboard + active-tab fallback with subtle page toast & badge feedback.
 5. **Air Traffic Control (URL Routing)**
    - Automatically routes newly opened URLs matching Glob or Regex rules into designated Chrome Tab Groups (name & color).
+   - URLs longer than 2,048 characters are never routed. Regex rules that could backtrack catastrophically (nested repeats such as `(a+)+`, backreferences, or more than two unbounded repeats counting an unanchored start) are disabled and flagged on the options page.
 6. **AI Tidy Tabs (`Cmd+Shift+T` / `Ctrl+Shift+T`)**
    - Organizes ungrouped tabs into Chrome Tab Groups using **Chrome Built-in AI (`LanguageModel`)** first, with optional **BYOK** fallback (Google Gemini / OpenAI / Anthropic Claude) and deterministic domain grouping fallback.
 

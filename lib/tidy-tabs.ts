@@ -438,29 +438,33 @@ export async function runTidyTabs(windowId?: number): Promise<TidyResult> {
     }
   }
 
-  const currentWindowTabs = await chrome.tabs.query({
-    windowId: targetWindowId,
-  });
-  const eligibleTabIds = new Set(
-    currentWindowTabs
-      .filter(
-        (t): t is chrome.tabs.Tab & { id: number } =>
-          t.id != null &&
-          t.windowId === targetWindowId &&
-          !t.pinned &&
-          t.groupId === noneGroupId,
-      )
-      .map((t) => t.id),
-  );
-
+  const usedTabIds = new Set<number>();
   let groupsCreated = 0;
   let tabsGrouped = 0;
 
   for (const group of suggestions) {
-    const tabIds = group.tabIds.filter((id) => eligibleTabIds.has(id));
+    const candidateIds = group.tabIds.filter((id) => !usedTabIds.has(id));
+    if (candidateIds.length < settings.tidyTabs.minTabsPerGroup) continue;
+
+    const currentWindowTabs = await chrome.tabs.query({
+      windowId: targetWindowId,
+    });
+    const eligibleTabIds = new Set(
+      currentWindowTabs
+        .filter(
+          (t): t is chrome.tabs.Tab & { id: number } =>
+            t.id != null &&
+            t.windowId === targetWindowId &&
+            !t.pinned &&
+            t.groupId === noneGroupId,
+        )
+        .map((t) => t.id),
+    );
+
+    const tabIds = candidateIds.filter((id) => eligibleTabIds.has(id));
     if (tabIds.length < settings.tidyTabs.minTabsPerGroup) continue;
     for (const id of tabIds) {
-      eligibleTabIds.delete(id);
+      usedTabIds.add(id);
     }
     try {
       const groupId = await chrome.tabs.group({

@@ -277,4 +277,95 @@ describe('runTidyTabs multi-window safety', () => {
       createProperties: { windowId: 10 },
     });
   });
+
+  it('rechecks tab window membership before each chrome.tabs.group call across multiple groups', async () => {
+    let queryCount = 0;
+    const initialTabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 1',
+        url: 'https://docs.google.com/a',
+      },
+      {
+        id: 4,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 2',
+        url: 'https://docs.google.com/b',
+      },
+    ];
+    // After the first group is created, tab 4 moves to window 20 before the second group runs
+    const afterFirstGroupTabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: 500,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: 500,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 1',
+        url: 'https://docs.google.com/a',
+      },
+      {
+        id: 4,
+        windowId: 20,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 2',
+        url: 'https://docs.google.com/b',
+      },
+    ];
+
+    const { groupMock } = setupChromeMock({
+      tabs: initialTabs,
+      onQuery: () => {
+        queryCount++;
+        return queryCount <= 2 ? initialTabs : afterFirstGroupTabs;
+      },
+    });
+
+    const result = await runTidyTabs(10);
+
+    expect(result.groupsCreated).toBe(1);
+    expect(result.tabsGrouped).toBe(2);
+    expect(groupMock).toHaveBeenCalledTimes(1);
+    expect(groupMock).toHaveBeenCalledWith({
+      tabIds: [1, 2],
+      createProperties: { windowId: 10 },
+    });
+  });
 });

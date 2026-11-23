@@ -54,6 +54,18 @@ function sendMsg<T>(message: RuntimeMessage): Promise<T> {
   return chrome.runtime.sendMessage(message) as Promise<T>;
 }
 
+async function getCurrentWindowId(): Promise<number | undefined> {
+  try {
+    const win = await chrome.windows.getCurrent();
+    if (win.id != null && win.id !== chrome.windows.WINDOW_ID_NONE) {
+      return win.id;
+    }
+  } catch {
+    // Fallback to background window resolution
+  }
+  return undefined;
+}
+
 function formatRelativeTime(timestamp: number): string {
   const diffMin = Math.max(1, Math.floor((Date.now() - timestamp) / 60000));
   if (diffMin < 60) return `${diffMin}m ago`;
@@ -80,7 +92,8 @@ export default function App() {
   const selectedItemRef = useRef<HTMLDivElement>(null);
 
   const loadState = useCallback(async () => {
-    const data = await sendMsg<PopupState>({ type: 'GET_POPUP_STATE' });
+    const windowId = await getCurrentWindowId();
+    const data = await sendMsg<PopupState>({ type: 'GET_POPUP_STATE', windowId });
     setState(data);
   }, []);
 
@@ -198,7 +211,8 @@ export default function App() {
   const handleTidyTabs = async () => {
     setBusyAction('tidy');
     try {
-      const res = await sendMsg<TidyResult>({ type: 'TIDY_TABS' });
+      const windowId = state?.currentWindowId ?? (await getCurrentWindowId());
+      const res = await sendMsg<TidyResult>({ type: 'TIDY_TABS', windowId });
       if (res.groupsCreated > 0) {
         showStatus(
           `${res.tabsGrouped}タブを${res.groupsCreated}グループに整理 (${res.engine})`,

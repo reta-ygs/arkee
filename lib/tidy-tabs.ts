@@ -315,20 +315,69 @@ async function runByokAi(
   return parseTidyJson(rawText, validIds, settings.minTabsPerGroup);
 }
 
+function isValidWindowId(windowId: number | undefined): windowId is number {
+  const noneId = chrome.windows?.WINDOW_ID_NONE ?? -1;
+  return windowId != null && windowId !== noneId;
+}
+
+async function resolveTargetWindowId(windowId?: number): Promise<number | null> {
+  if (isValidWindowId(windowId)) {
+    return windowId;
+  }
+
+  try {
+    const lastFocused = await chrome.windows.getLastFocused({
+      windowTypes: ['normal'],
+    });
+    if (isValidWindowId(lastFocused?.id)) {
+      return lastFocused.id;
+    }
+  } catch {
+    // Fallback to active tab lookup
+  }
+
+  try {
+    const [activeTab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true,
+    });
+    if (isValidWindowId(activeTab?.windowId)) {
+      return activeTab.windowId;
+    }
+  } catch {
+    // No active window available
+  }
+
+  return null;
+}
+
 export async function runTidyTabs(windowId?: number): Promise<TidyResult> {
   const settings = await getSettings();
-  const targetWindowId = windowId ?? (await chrome.windows.getLastFocused()).id;
+  const targetWindowId = await resolveTargetWindowId(windowId);
 
+  if (targetWindowId == null) {
+    return {
+      engine: 'domain',
+      groupsCreated: 0,
+      tabsGrouped: 0,
+      note: 'No active browser window found',
+    };
+  }
+
+  const noneGroupId = chrome.tabGroups.TAB_GROUP_ID_NONE;
   const allTabs = await chrome.tabs.query({
     windowId: targetWindowId,
     pinned: false,
-    groupId: chrome.tabGroups.TAB_GROUP_ID_NONE,
+    groupId: noneGroupId,
   });
 
   const candidates: TidyTabInput[] = allTabs
     .filter(
       (t): t is chrome.tabs.Tab & { id: number; url: string } =>
         t.id != null &&
+        t.windowId === targetWindowId &&
+        !t.pinned &&
+        t.groupId === noneGroupId &&
         Boolean(t.url) &&
         (t.url!.startsWith('http://') || t.url!.startsWith('https://')),
     )
@@ -389,25 +438,47 @@ export async function runTidyTabs(windowId?: number): Promise<TidyResult> {
     }
   }
 
+  const usedTabIds = new Set<number>();
   let groupsCreated = 0;
   let tabsGrouped = 0;
 
   for (const group of suggestions) {
-    if (group.tabIds.length === 0) continue;
+    const candidateIds = group.tabIds.filter((id) => !usedTabIds.has(id));
+    if (candidateIds.length < settings.tidyTabs.minTabsPerGroup) continue;
+
+    const currentWindowTabs = await chrome.tabs.query({
+      windowId: targetWindowId,
+    });
+    const eligibleTabIds = new Set(
+      currentWindowTabs
+        .filter(
+          (t): t is chrome.tabs.Tab & { id: number } =>
+            t.id != null &&
+            t.windowId === targetWindowId &&
+            !t.pinned &&
+            t.groupId === noneGroupId,
+        )
+        .map((t) => t.id),
+    );
+
+    const tabIds = candidateIds.filter((id) => eligibleTabIds.has(id));
+    if (tabIds.length < settings.tidyTabs.minTabsPerGroup) continue;
+    for (const id of tabIds) {
+      usedTabIds.add(id);
+    }
     try {
       const groupId = await chrome.tabs.group({
-        tabIds: group.tabIds as [number, ...number[]],
-        createProperties:
-          targetWindowId != null ? { windowId: targetWindowId } : undefined,
+        tabIds: tabIds as [number, ...number[]],
+        createProperties: { windowId: targetWindowId },
       });
       await chrome.tabGroups.update(groupId, {
         title: group.title,
         color: group.color,
       });
       groupsCreated++;
-      tabsGrouped += group.tabIds.length;
+      tabsGrouped += tabIds.length;
     } catch {
-      // Tab may have closed during AI inference
+      // Tab may have closed or moved during AI inference
     }
   }
 

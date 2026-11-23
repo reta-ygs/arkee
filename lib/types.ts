@@ -139,7 +139,7 @@ export type RuntimeMessage =
   | { type: 'RESTORE_ARCHIVED_TAB'; id: string }
   | { type: 'DELETE_ARCHIVED_TAB'; id: string }
   | { type: 'CLEAR_ARCHIVE' }
-  | { type: 'GET_POPUP_STATE' }
+  | { type: 'GET_POPUP_STATE'; windowId?: number }
   | { type: 'OFFSCREEN_COPY'; text: string };
 
 export interface PopupOpenTab {

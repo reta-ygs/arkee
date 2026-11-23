@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { buildDomainFallbackGroups, parseTidyJson } from '../lib/tidy-tabs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildDomainFallbackGroups, parseTidyJson, runTidyTabs } from '../lib/tidy-tabs';
 
 describe('parseTidyJson', () => {
   it('parses fenced JSON, deduplicates tabIds, and filters small groups', () => {
@@ -39,5 +39,333 @@ describe('buildDomainFallbackGroups', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].title).toBe('Github');
     expect(groups[0].tabIds).toEqual([1, 2]);
+  });
+});
+
+interface MockTab {
+  id: number;
+  windowId: number;
+  pinned: boolean;
+  groupId: number;
+  title: string;
+  url: string;
+  active?: boolean;
+}
+
+function setupChromeMock(options: {
+  tabs: MockTab[];
+  lastFocusedWindowId?: number;
+  onQuery?: (queryInfo: chrome.tabs.QueryInfo) => MockTab[];
+}) {
+  const groupMock = vi.fn().mockResolvedValue(500);
+  const updateGroupMock = vi.fn().mockResolvedValue({});
+  const getLastFocusedMock = vi.fn().mockResolvedValue({
+    id: options.lastFocusedWindowId,
+  });
+  const queryMock = vi
+    .fn()
+    .mockImplementation(async (queryInfo: chrome.tabs.QueryInfo) => {
+      if (options.onQuery) {
+        return options.onQuery(queryInfo);
+      }
+      return options.tabs.filter((t) => {
+        if (queryInfo.windowId !== undefined && t.windowId !== queryInfo.windowId) {
+          return false;
+        }
+        if (queryInfo.pinned !== undefined && t.pinned !== queryInfo.pinned) {
+          return false;
+        }
+        if (queryInfo.groupId !== undefined && t.groupId !== queryInfo.groupId) {
+          return false;
+        }
+        if (queryInfo.active !== undefined && Boolean(t.active) !== queryInfo.active) {
+          return false;
+        }
+        return true;
+      });
+    });
+
+  vi.stubGlobal('chrome', {
+    storage: {
+      local: {
+        get: vi.fn().mockResolvedValue({
+          arkee_settings: {
+            tidyTabs: {
+              mode: 'domain',
+              minTabsPerGroup: 2,
+            },
+          },
+        }),
+      },
+    },
+    windows: {
+      WINDOW_ID_NONE: -1,
+      getLastFocused: getLastFocusedMock,
+    },
+    tabGroups: {
+      TAB_GROUP_ID_NONE: -1,
+      update: updateGroupMock,
+    },
+    tabs: {
+      query: queryMock,
+      group: groupMock,
+    },
+  });
+
+  return { groupMock, updateGroupMock, getLastFocusedMock, queryMock };
+}
+
+describe('runTidyTabs multi-window safety', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('only groups tabs in the target window and never touches tabs in other windows', async () => {
+    const tabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 20,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 3',
+        url: 'https://github.com/c',
+      },
+      {
+        id: 4,
+        windowId: 20,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 4',
+        url: 'https://github.com/d',
+      },
+    ];
+    // Even if chrome.tabs.query unexpectedly returns tabs from another window, runTidyTabs filters by targetWindowId
+    const { groupMock } = setupChromeMock({
+      tabs,
+      onQuery: () => tabs,
+    });
+
+    const result = await runTidyTabs(10);
+
+    expect(result.groupsCreated).toBe(1);
+    expect(result.tabsGrouped).toBe(2);
+    expect(groupMock).toHaveBeenCalledTimes(1);
+    expect(groupMock).toHaveBeenCalledWith({
+      tabIds: [1, 2],
+      createProperties: { windowId: 10 },
+    });
+  });
+
+  it('does not query all windows or group tabs when no valid windowId can be resolved', async () => {
+    const tabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 20,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+    ];
+    const { groupMock, getLastFocusedMock } = setupChromeMock({
+      tabs,
+      lastFocusedWindowId: undefined,
+    });
+
+    const result = await runTidyTabs();
+
+    expect(getLastFocusedMock).toHaveBeenCalledWith({ windowTypes: ['normal'] });
+    expect(result.groupsCreated).toBe(0);
+    expect(result.tabsGrouped).toBe(0);
+    expect(groupMock).not.toHaveBeenCalled();
+  });
+
+  it('skips tabs that moved to another window before grouping is applied', async () => {
+    let callCount = 0;
+    const initialTabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 3',
+        url: 'https://github.com/c',
+      },
+    ];
+    // Before chrome.tabs.group runs, tab 3 moved to window 20
+    const afterMoveTabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 20,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 3',
+        url: 'https://github.com/c',
+      },
+    ];
+
+    const { groupMock } = setupChromeMock({
+      tabs: initialTabs,
+      onQuery: () => {
+        callCount++;
+        return callCount === 1 ? initialTabs : afterMoveTabs;
+      },
+    });
+
+    const result = await runTidyTabs(10);
+
+    expect(result.groupsCreated).toBe(1);
+    expect(result.tabsGrouped).toBe(2);
+    expect(groupMock).toHaveBeenCalledWith({
+      tabIds: [1, 2],
+      createProperties: { windowId: 10 },
+    });
+  });
+
+  it('rechecks tab window membership before each chrome.tabs.group call across multiple groups', async () => {
+    let queryCount = 0;
+    const initialTabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 1',
+        url: 'https://docs.google.com/a',
+      },
+      {
+        id: 4,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 2',
+        url: 'https://docs.google.com/b',
+      },
+    ];
+    // After the first group is created, tab 4 moves to window 20 before the second group runs
+    const afterFirstGroupTabs: MockTab[] = [
+      {
+        id: 1,
+        windowId: 10,
+        pinned: false,
+        groupId: 500,
+        title: 'GH 1',
+        url: 'https://github.com/a',
+      },
+      {
+        id: 2,
+        windowId: 10,
+        pinned: false,
+        groupId: 500,
+        title: 'GH 2',
+        url: 'https://github.com/b',
+      },
+      {
+        id: 3,
+        windowId: 10,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 1',
+        url: 'https://docs.google.com/a',
+      },
+      {
+        id: 4,
+        windowId: 20,
+        pinned: false,
+        groupId: -1,
+        title: 'Docs 2',
+        url: 'https://docs.google.com/b',
+      },
+    ];
+
+    const { groupMock } = setupChromeMock({
+      tabs: initialTabs,
+      onQuery: () => {
+        queryCount++;
+        return queryCount <= 2 ? initialTabs : afterFirstGroupTabs;
+      },
+    });
+
+    const result = await runTidyTabs(10);
+
+    expect(result.groupsCreated).toBe(1);
+    expect(result.tabsGrouped).toBe(2);
+    expect(groupMock).toHaveBeenCalledTimes(1);
+    expect(groupMock).toHaveBeenCalledWith({
+      tabIds: [1, 2],
+      createProperties: { windowId: 10 },
+    });
   });
 });

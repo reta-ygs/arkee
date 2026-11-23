@@ -41,18 +41,33 @@ async function ensureAlarm(): Promise<void> {
   }
 }
 
-async function buildPopupState(): Promise<PopupState> {
-  const [settings, archivedTabs, groupRecords, lastWindow] = await Promise.all([
+async function resolvePopupWindowId(windowId?: number): Promise<number | undefined> {
+  if (windowId != null && windowId !== chrome.windows.WINDOW_ID_NONE) {
+    return windowId;
+  }
+  const lastWindow = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+  if (lastWindow.id != null && lastWindow.id !== chrome.windows.WINDOW_ID_NONE) {
+    return lastWindow.id;
+  }
+  return undefined;
+}
+
+async function buildPopupState(windowId?: number): Promise<PopupState> {
+  const [settings, archivedTabs, groupRecords, targetWindowId] = await Promise.all([
     getSettings(),
     getArchivedTabs(),
     getGroupHomes(),
-    chrome.windows.getLastFocused(),
+    resolvePopupWindowId(windowId),
   ]);
 
   const [windowGroups, allGroups, windowTabs, allTabs] = await Promise.all([
-    chrome.tabGroups.query({ windowId: lastWindow.id }),
+    targetWindowId != null
+      ? chrome.tabGroups.query({ windowId: targetWindowId })
+      : Promise.resolve([]),
     chrome.tabGroups.query({}),
-    chrome.tabs.query({ windowId: lastWindow.id }),
+    targetWindowId != null
+      ? chrome.tabs.query({ windowId: targetWindowId })
+      : Promise.resolve([]),
     chrome.tabs.query({}),
   ]);
 
@@ -109,7 +124,7 @@ async function buildPopupState(): Promise<PopupState> {
         title: t.title || t.url || 'Untitled',
         url: t.url ?? '',
         favIconUrl: t.favIconUrl,
-        active: Boolean(t.active && t.windowId === lastWindow.id),
+        active: Boolean(t.active && t.windowId === targetWindowId),
         discarded: Boolean(t.discarded),
         groupTitle: groupInfo?.title,
         groupColor: groupInfo?.color,
@@ -132,7 +147,7 @@ async function buildPopupState(): Promise<PopupState> {
   ).length;
 
   const otherWindowGroups: OtherWindowGroup[] = allGroups
-    .filter((g) => g.windowId !== lastWindow.id)
+    .filter((g) => targetWindowId == null || g.windowId !== targetWindowId)
     .map((g) => ({
       groupId: g.id,
       windowId: g.windowId,
@@ -148,7 +163,7 @@ async function buildPopupState(): Promise<PopupState> {
     tabGroups,
     otherWindowGroups,
     openTabs,
-    currentWindowId: lastWindow.id,
+    currentWindowId: targetWindowId,
     activeTabId,
     activeTabGroupId,
     ungroupedCount,
@@ -223,13 +238,13 @@ export default defineBackground(() => {
     void clearAtcRouted(tabId);
   });
 
-  chrome.commands.onCommand.addListener((command) => {
+  chrome.commands.onCommand.addListener((command, tab) => {
     if (command === 'quick-copy-url') {
       void quickCopyActiveUrl();
     } else if (command === 'reset-group-tab') {
       void resetGroupTabToHome();
     } else if (command === 'tidy-tabs') {
-      void runTidyTabs();
+      void runTidyTabs(tab?.windowId);
     }
   });
 
@@ -247,7 +262,7 @@ export default defineBackground(() => {
         try {
           switch (message.type) {
             case 'GET_POPUP_STATE':
-              sendResponse(await buildPopupState());
+              sendResponse(await buildPopupState(message.windowId));
               break;
             case 'QUICK_COPY_URL':
               sendResponse(await quickCopyActiveUrl());
